@@ -229,23 +229,25 @@ function Container:normalize(normType, mean, std)
         self.Data:add(-mean):div(std)
 
     else
-        local size, channels, y_size, x_size = unpack(self.Data:size():totable())
-        if normType == "channel" then
-            local function channelMap(x, f, cNum)
-                local values = torch.Tensor(cNum)
-                for c=1, cNum do
-                    values[c] = f(x:select(2,c))
+        if #self.Data:size() == 4 then
+            local size, channels, y_size, x_size = unpack(self.Data:size():totable())
+            if normType == "channel" then
+                local function channelMap(x, f, cNum)
+                    local values = torch.Tensor(cNum)
+                    for c=1, cNum do
+                        values[c] = f(x:select(2,c))
+                    end
+                    return values
                 end
-                return values
+                mean = mean or channelMap(self.Data, torch.mean, channels):view(1, channels, 1, 1)
+                std = std or channelMap(self.Data, torch.std, channels):view(1, channels, 1, 1)
+            elseif normType == "image" then
+                mean = mean or self.Data:view(size,-1):mean(1):view(1, channels, y_size, x_size)
+                std = std or self.Data:view(size,-1):std(1):view(1, channels, y_size, x_size)
             end
-            mean = mean or channelMap(self.Data, torch.mean, channels):view(1, channels, 1, 1)
-            std = std or channelMap(self.Data, torch.std, channels):view(1, channels, 1, 1)
-        elseif normType == "image" then
-            mean = mean or self.Data:view(size,-1):mean(1):view(1, channels, y_size, x_size)
-            std = std or self.Data:view(size,-1):std(1):view(1, channels, y_size, x_size)
-        end
-        self.Data:add(-1, mean:typeAs(self.Data):expand(size,channels,y_size,x_size))
-        self.Data:cdiv(std:typeAs(self.Data):expand(size,channels,y_size,x_size))
+            self.Data:add(-1, mean:typeAs(self.Data):expand(size,channels,y_size,x_size))
+            self.Data:cdiv(std:typeAs(self.Data):expand(size,channels,y_size,x_size))
+       end
     end
 
     return mean, std
