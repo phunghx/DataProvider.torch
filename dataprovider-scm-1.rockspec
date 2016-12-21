@@ -2,7 +2,7 @@ package = "DataProvider"
 version = "scm-1"
 
 source = {
-   url = "git://github.com/eladhoffer/DataProvider.torch.git"
+   url = "git://github.com/phunghx/DataProvider.torch.git"
 }
 
 description = {
@@ -10,7 +10,7 @@ description = {
    detailed = [[
    	    Data Provider for torch
    ]],
-   homepage = "https://github.com/ehoffer/DataProvider.torch"
+   homepage = "https://github.com/phunghx/DataProvider.torch"
 }
 
 dependencies = {
