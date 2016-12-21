@@ -9,7 +9,10 @@ function LMDBProvider:__init(...)
     'Initializes a DataProvider ',
     {arg='ExtractFunction', type='function', help='function used to extract Data, Label and Info', req = true},
     {arg='Source', type='userdata', help='LMDB env', req=true},
-    {arg='Verbose', type='boolean', help='display messages', default = false}
+    {arg='Verbose', type='boolean', help='display messages', default = false},
+    {arg='outputSize', type='userdata', help='size of data', default = {3,224,224}},
+    {arg='getKey',type='function', help='function used to get key', req=false},
+    {arg='skipFrame',type='int', help='skip frame in video', default=3}
 
     )
     for x,val in pairs(args) do
@@ -25,8 +28,12 @@ function LMDBProvider:size()
     return SizeData
 end
 
-function LMDBProvider:cacheSeq(start_pos, num, data, labels, time)
-    local time or false
+function LMDBProvider:cacheSeq(start_pos, num, data, labels)
+    if #self.outputSize == 4 then
+    	local time = self.outputSize[2]
+    else
+    	local time = 0
+    end
     local num = num or 1
     self.Source:open()
     local txn = self.Source:txn(true)
@@ -35,12 +42,33 @@ function LMDBProvider:cacheSeq(start_pos, num, data, labels, time)
 
     local Data = data or {}
     local Labels = labels or {}
-    for i = 1, num do
-        local key, data = cursor:get()
-        Data[i], Labels[i] = self.ExtractFunction(data, key)
-        if i<num then
-            cursor:next()
-        end
+    if time == 0 then
+        for i = 1, num do
+	     local key, data = cursor:get()
+	     Data[i], Labels[i] = self.ExtractFunction(data, key)
+	     if i<num then
+		    cursor:next()
+	     end
+	end
+    else
+    	start_index = tonumber(start_pos)
+        for i = 1, num do
+             start_cursor = start_index- self.skipFrame * time + torch.randperm(self.skipFrame)[1] - 1 + i
+             start_data = self.getKey(start_cursor)
+             cursor:set(start_data)
+             Data_t = torch.ByteTensor(self.outputSize[2],self.outputSize[1],self.outputSize[3],self.outputSize[4])
+             Label_t = nil
+             for t=1, self.skipFrame * time do
+		     local key, data = cursor:get()
+		     Data_t[t], Label_t = self.ExtractFunction(data, key)
+		     if t<time then
+		     	    for tem_index=1,self.skipFrame do
+				cursor:next()
+			    end
+		     end
+	     end
+	     Data[i], Labels[i] = Data_t.transpose(1,2), Label_t
+	end
     end
     cursor:close()
     txn:abort()
