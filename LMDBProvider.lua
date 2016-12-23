@@ -1,4 +1,5 @@
 local LMDBProvider = torch.class('DataProvider.LMDBProvider')
+---local dbg = require("debugger")
 
 function LMDBProvider:__init(...)
     xlua.require('torch',true)
@@ -28,11 +29,11 @@ function LMDBProvider:size()
     return SizeData
 end
 
-function LMDBProvider:cacheSeq(start_pos, num, data, labels)
+function LMDBProvider:cacheSeq(start_pos, num, data, labels,train)
+    
+    local time = 0
     if #self.outputSize == 4 then
-    	local time = self.outputSize[2]
-    else
-    	local time = 0
+    	time = self.outputSize[2]
     end
     local num = num or 1
     self.Source:open()
@@ -56,10 +57,16 @@ function LMDBProvider:cacheSeq(start_pos, num, data, labels)
              start_cursor = start_index- self.skipFrame * time + torch.randperm(self.skipFrame)[1] - 1 + i
              start_data = self.getKey(start_cursor)
              cursor:set(start_data)
-             Data_t = torch.ByteTensor(self.outputSize[2],self.outputSize[1],self.outputSize[3],self.outputSize[4])
+             ---if train==false then
+	     ---        dbg()
+	     ---end
+             local Data_t = torch.ByteTensor(self.outputSize[2],self.outputSize[1],self.outputSize[3],self.outputSize[4])
              Label_t = nil
-             for t=1, self.skipFrame * time do
+             for t=1, time do
 		     local key, data = cursor:get()
+		     ---if data == nil then
+		     --	dbg()
+		     ---end
 		     Data_t[t], Label_t = self.ExtractFunction(data, key)
 		     if t<time then
 		     	    for tem_index=1,self.skipFrame do
@@ -67,7 +74,7 @@ function LMDBProvider:cacheSeq(start_pos, num, data, labels)
 			    end
 		     end
 	     end
-	     Data[i], Labels[i] = Data_t.transpose(1,2), Label_t
+	     Data[i], Labels[i] = Data_t:transpose(1,2), Label_t
 	end
     end
     cursor:close()
@@ -114,11 +121,11 @@ function LMDBProvider:threads(nthread)
     )
 end
 
-function LMDBProvider:asyncCacheSeq(start, num, dataBuffer, labelsBuffer)
+function LMDBProvider:asyncCacheSeq(start, num, dataBuffer, labelsBuffer,train)
     self.threads:addjob(
     -- the job callback (runs in data-worker thread)
     function()
-        local data, labels = workerProvider:cacheSeq(start,num,dataBuffer,labelsBuffer)
+        local data, labels = workerProvider:cacheSeq(start,num,dataBuffer,labelsBuffer,train)
         return data, labels
     end,
     -- the endcallback (runs in the main thread)
