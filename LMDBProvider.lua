@@ -54,7 +54,11 @@ function LMDBProvider:cacheSeq(start_pos, num, data, labels,train)
     else
     	start_index = tonumber(start_pos)
         for i = 1, num do
-             start_cursor = start_index- self.skipFrame * time + torch.randperm(self.skipFrame)[1] - 1 + i
+             if train ~= nil then
+             	start_cursor = start_index- self.skipFrame * time + train - 1 + i
+             else
+             	start_cursor = start_index- self.skipFrame * time + torch.randperm(self.skipFrame)[1] - 1 + i
+             end
              start_data = self.getKey(start_cursor)
              cursor:set(start_data)
              ---if train==false then

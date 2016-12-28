@@ -152,6 +152,9 @@ function Container:createBatch()
     end
 
     local NumInBatch = math.min(self.Source:size() - self.CurrentItemSource + 1, self.MaxNumItems)
+    while (NumInBatch % 4 ~=0) and NumInBatch > 12 do
+    	NumInBatch = NumInBatch -1 
+    end
     local source_data, source_labels = self.Source:getItems(self.CurrentItemSource, NumInBatch)
     local data, labels = self.ExtractFunction(source_data,source_labels)
     if self.CopyData then
